@@ -1,0 +1,9 @@
+__pycache__
+.vscode/
+*.swap
+
+cached*
+CoNLL*
+pointer_e/
+greedy_enconter/
+bbt_enconter/
