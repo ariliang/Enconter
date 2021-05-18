@@ -123,8 +123,14 @@ for e in range(counter, args.epoch):
         pbar.update(1)
         optimizer.zero_grad()
         inputs, labels = batch_data
+
+        encoded = labels.tolist()
+        decoded = []
+        for sent in encoded:
+            decoded.append(tokenizer.decode(sent))
+
         inputs, labels = inputs.to(device), labels.to(device)
-        attn_mask = torch.tensor(inputs != tokenizer.pad_token_id, dtype=torch.float32, device=device)
+        attn_mask = (inputs != tokenizer.pad_token_id).float().to(device)
         output = model(inputs, attn_mask, labels=labels)
         loss = output[0]
         loss.backward()

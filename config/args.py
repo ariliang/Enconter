@@ -1,29 +1,52 @@
-import argparse
+class Argument:
 
-parser = argparse.ArgumentParser(description="Train a transformer")
-# Basic config
-parser.add_argument("--epoch", type=int, default=10, help="epoch")
-parser.add_argument("--batch_size", type=int, default=4, help="batch size")
-parser.add_argument("--save_dir", type=str, default="checkpoint", help="save directory")
-parser.add_argument("--save_epoch", type=int, default=5, help="save per how many epoch")
-# Optimizer
-parser.add_argument("--lr", type=float, default=5e-5, help="learning rate")
-parser.add_argument("--lr_override", action="store_true", help="ignore optimizer checkpoint and override learning rate")
-parser.add_argument("--weight_decay", type=float, default=1, help="lr weight decay factor")
-parser.add_argument("--decay_step", type=int, default=1, help="lr weight decay step size")
-parser.add_argument("--warmup", action="store_true", help="Learning rate warmup")
-parser.add_argument("--warmup_steps", type=int, default=4000, help="Warmup step")
-# Dataset
-parser.add_argument("--workers", type=int, default=8, help="number of workers for dataset loader")
-parser.add_argument("--dataset", type=str, required=True, help="path to dataset")
-parser.add_argument("--dataset_version", type=str, help="dataset version")
-# model
-parser.add_argument("--model", type=str, default="bert-base-uncased",
-                    help="Choose between bert_initialized or original")
-parser.add_argument("--tokenizer", type=str, default='bert-base-cased', help="Using customized tokenizer")
-# Debug
-parser.add_argument("--no_shuffle", action="store_false", help="No shuffle")
-parser.add_argument("--debug", action="store_true", help="Debug mode")
-parser.add_argument("--debug_dataset_size", type=int, default=1)
+    # Basic config
+    epoch = 10      # default=10, epoch
+    batch_size = 4  # default=4, batch size
+    save_dir = 'checkpoint' # save directory
+    save_epoch = 5  # default=5, save per how many epoch
 
-args = parser.parse_args()
+    # Optimizer
+    lr = 5e-5           # default=5e-5, learning rate
+    lr_override = None  # action=store_true, ignore optimizer checkpoint and override learning rate
+    weight_decay = 1    # default=1, lr weight decay factor
+    decay_step = 1      # default=1, lr weight decay step size
+    warmup = None       # action=store_true, Learning rate warmup
+    warmup_steps = 4000 # default=4000, Warmup step
+
+    # Dataset
+    workers = 8         # default=8, number of workers for dataset loader
+    dataset = None      # required=True, path to dataset
+    dataset_version = None # dataset version
+
+    # model
+    model = 'bert-base-uncased' # default=bert-base-uncased
+    tokenizer = 'bert-base-cased' # default='bert-base-cased', Using customized tokenizer
+
+    # Debug
+    no_shuffle = None # action=store_false, No shuffle
+    debug = None # action=store_true, Debug mode
+    debug_dataset_size = 1 # default=1
+
+
+def get_args(opt):
+    args = Argument
+
+    if opt == 'pointer_e':
+        args.batch_size = 8
+        args.save_dir = 'pointer_e'
+        args.epoch = 10
+        args.dataset = 'CoNLL_pointer_e'
+        args.dataset_version = 'CoNLL'
+        args.save_epoch = 5
+
+        args.workers = 1
+    elif opt == 'greedy_enconter':
+        pass
+    elif opt == 'bbt_enconter':
+        pass
+
+    return args
+
+
+args = get_args('pointer_e')
