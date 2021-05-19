@@ -15,7 +15,7 @@ class TrainArguments:
     warmup_steps = 4000 # default=4000, Warmup step
 
     # Dataset
-    workers = 8         # default=8, number of workers for dataset loader
+    workers = 1         # default=8, number of workers for dataset loader
     dataset = None      # required=True, path to dataset
     dataset_version = 'CoNLL' # dataset version
 
@@ -35,8 +35,6 @@ class TrainArguments:
         if opt == 'pointer_e':
             args.save_dir = 'pointer_e'
             args.dataset = 'CoNLL_pointer_e'
-
-            args.workers = 1
         elif opt == 'greedy_enconter':
             args.save_dir = 'greedy_enconter'
             args.dataset = 'CoNLL_greedy_enconter'
@@ -97,5 +95,5 @@ class TestArguments:
         return args
 
 
-train_args = TrainArguments.get_args('pointer_e')
-test_args = TestArguments.get_args('pointer_e')
+train_args = TrainArguments.get_args('bbt_enconter')
+test_args = TestArguments.get_args('bbt_enconter_esai')

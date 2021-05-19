@@ -100,9 +100,9 @@ for eval in tqdm(eval_dataset):
         generated = generated_seq.clone().detach()
         gen_iter_counter += 1
     generation = tokenizer.decode(generated.tolist())
-    print("Entities: ", e)
-    print("Generation: ", generation)
-    print("GT: ", gt)
+    # print("Entities: ", e)
+    # print("Generation: ", generation)
+    # print("GT: ", gt)
     result.append((e, generation, gt))
     if e.split() == generation.split():
         gen_iter.append(-1)
