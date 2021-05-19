@@ -112,7 +112,7 @@ if args.warmup:
 else:
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, args.decay_step, gamma=args.weight_decay)
 
-criterion = torch.nn.CrossEntropyLoss()
+criterion = torch.nn.CrossEntropyLoss(ignore_index=tokenizer.pad_token_id, reduction='sum')
 logger.info("Start training...")
 epoch_loss = np.zeros(0)
 for e in range(counter, args.epoch):
@@ -121,19 +121,28 @@ for e in range(counter, args.epoch):
     for batch_num, batch_data in enumerate(loader):
         model.train()
         pbar.update(1)
-        optimizer.zero_grad()
         inputs, labels = batch_data
 
-        encoded = labels.tolist()
+        encoded_labels = labels.tolist()
+        encoded_inputs = inputs.tolist()
         decoded = []
-        for sent in encoded:
-            decoded.append(tokenizer.decode(sent))
+        for ipt, lb in zip(encoded_inputs, encoded_labels):
+            decoded.append(tokenizer.decode(ipt).split(' '))
+            decoded.append(tokenizer.decode(lb).split(' '))
 
         inputs, labels = inputs.to(device), labels.to(device)
         attn_mask = (inputs != tokenizer.pad_token_id).float().to(device)
-        output = model(inputs, attn_mask, labels=labels)
-        loss = output[0]
-        loss.backward()
+        # output = model(input_ids=inputs, attention_mask=attn_mask, labels=labels)
+        # loss = output[0]
+
+        output = model(input_ids=inputs, attention_mask=attn_mask)
+        logits = output[0]
+        logits_view = logits.view(-1, logits.size(-1)).float()
+        labels_view = labels.view(-1).long()
+        loss = criterion(logits_view, labels_view)
+
+        optimizer.zero_grad()
+        loss.backward(loss.data)
         optimizer.step()
         avg_loss += loss.item()
         if args.warmup:
