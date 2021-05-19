@@ -20,7 +20,7 @@ class TrainArguments:
     dataset_version = 'CoNLL' # dataset version
 
     # model
-    model = 'bert-base-uncased' # default=bert-base-uncased
+    model = 'bert-base-cased' # default=bert-base-uncased
     tokenizer = 'bert-base-cased' # default='bert-base-cased', Using customized tokenizer
 
     # Debug

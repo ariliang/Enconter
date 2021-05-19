@@ -43,7 +43,7 @@ else:
 # Building model
 padding_token = tokenizer.pad_token_id
 logger.info("Building model...")
-model = BertForMaskedLM.from_pretrained("bert-base-cased")
+model = BertForMaskedLM.from_pretrained(args.model)
 model.resize_token_embeddings(len(tokenizer))
 model = torch.nn.DataParallel(model)
 model = model.to(device)
