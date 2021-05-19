@@ -20,8 +20,9 @@ class TrainArguments:
     dataset_version = 'CoNLL' # dataset version
 
     # model
-    model = 'bert-base-cased' # default=bert-base-uncased
-    tokenizer = 'bert-base-cased' # default='bert-base-cased', Using customized tokenizer
+    model_dir = '/home/ariliang/Local-Data/models_datasets/'
+    model = model_dir + 'bert-base-chinese' # default=bert-base-uncased
+    tokenizer = model_dir + 'bert-base-chinese' # default='bert-base-cased', Using customized tokenizer
 
     # Debug
     no_shuffle = None # action=store_false, No shuffle
