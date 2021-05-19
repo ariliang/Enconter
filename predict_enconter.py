@@ -1,4 +1,3 @@
-import argparse
 import logging
 import os
 import pickle as pk
@@ -7,22 +6,12 @@ import torch
 from tqdm import tqdm
 from transformers import BertForMaskedLM, BertTokenizer
 
+from config.args import test_args as args
+
 
 device = torch.device("cuda")
 logger = logging.getLogger(__name__)
 
-parser = argparse.ArgumentParser(description="Train a transformer")
-# Basic config
-parser.add_argument("--batch_size", type=int, default=4, help="Batch size")
-parser.add_argument("--save_dir", type=str, default="checkpoint", help="Save directory")
-parser.add_argument("--eval_dataset", type=str, required=True)
-parser.add_argument("--output_file", type=str, required=True)
-# model
-parser.add_argument("--model", type=str, default="bert-base-cased", help="Choose between bert_initialized or original")
-parser.add_argument("--tokenizer", type=str, default="bert-base-cased", help="Using customized tokenizer")
-parser.add_argument("--inference_mode", type=str, default="normal", help="Select inference mode between normal and esai")
-
-args = parser.parse_args()
 
 # Tokenizer
 tokenizer_path = os.path.join(args.save_dir, args.tokenizer)

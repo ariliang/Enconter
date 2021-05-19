@@ -11,7 +11,7 @@ from transformers import BertTokenizer, BertForMaskedLM
 
 from dataset_utils import InsertionTransformerDataset, concat_fn
 from utils import get_linear_schedule_with_warmup, get_lr
-from config.args import args
+from config.args import train_args as args
 
 device = torch.device("cuda")
 logger = logging.getLogger(__name__)
