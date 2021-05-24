@@ -2,9 +2,4 @@ __pycache__
 .vscode/
 *.swap
 
-cached*
-CoNLL*
-eval/
-pointer_e/
-greedy_enconter/
-bbt_enconter/
+output/
