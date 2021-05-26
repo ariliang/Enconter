@@ -27,12 +27,9 @@ tokenizer_path = os.path.join(args.save_dir, args.tokenizer)
 if os.path.exists(tokenizer_path):
     logger.info("Loading saved tokenizer in {}...".format(tokenizer_path))
     tokenizer = BertTokenizer.from_pretrained(tokenizer_path)
-elif os.path.exists(args.tokenizer):
-    logger.info("Loading saved tokenizer in {}...".format(args.tokenizer))
-    tokenizer = BertTokenizer.from_pretrained(args.tokenizer)
 else:
-    logger.info("Using {} tokenizer...".format(args.tokenizer))
-    tokenizer = BertTokenizer.from_pretrained(args.tokenizer)
+    logger.info("Using {} tokenizer...".format(args.model))
+    tokenizer = BertTokenizer.from_pretrained(args.model)
     if args.dataset_version == "CoNLL":
         tokenizer.add_special_tokens({"additional_special_tokens": ["[NOI]", "\n"]})
     else:
@@ -87,7 +84,7 @@ if counter > 0 and not args.debug:
         logger.info("Optimizer check point not exist!")
 optimizer.param_groups[0]['initial_lr'] = optimizer.param_groups[0]['lr']
 
-training_dataset = InsertionTransformerDataset(tokenizer, os.path.join(os.getcwd(), "dataset", args.dataset))
+training_dataset = InsertionTransformerDataset(tokenizer, os.path.join(os.getcwd(), args.dataset))
 if args.debug or args.workers == 1:
     loader = data.DataLoader(training_dataset,
                              batch_size=args.batch_size,
@@ -132,14 +129,15 @@ for e in range(counter, args.epoch):
 
         inputs, labels = inputs.to(device), labels.to(device)
         attn_mask = (inputs != tokenizer.pad_token_id).float().to(device)
-        # output = model(input_ids=inputs, attention_mask=attn_mask, labels=labels)
-        # loss = output[0]
+
+        num_target = attn_mask.sum().item()
 
         output = model(input_ids=inputs, attention_mask=attn_mask)
         logits = output[0]
+
         logits_view = logits.view(-1, logits.size(-1)).float()
         labels_view = labels.view(-1).long()
-        loss = criterion(logits_view, labels_view)
+        loss = criterion(logits_view, labels_view) / num_target
 
         optimizer.zero_grad()
         loss.backward(loss.data)
@@ -155,7 +153,7 @@ for e in range(counter, args.epoch):
     pbar.close()
     loss_history = np.concatenate((loss_history, avg_loss / len(loader)))
     np.save(os.path.join(os.getcwd(), args.save_dir, "loss_history"), loss_history)
-    plt.plot(loss_history)
+    plt.plot(np.arange(1, len(loss_history)+1), loss_history, '-o')
     plt.title("loss history")
     plt.savefig(os.path.join(args.save_dir, "loss_history.png"))
     if not args.debug and (e % args.save_epoch == 0 or e == args.epoch - 1):

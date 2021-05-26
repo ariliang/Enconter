@@ -18,9 +18,9 @@ tokenizer_path = os.path.join(args.save_dir, args.tokenizer)
 if os.path.exists(tokenizer_path):
     logger.info("Loading saved tokenizer in {}...".format(tokenizer_path))
     tokenizer = BertTokenizer.from_pretrained(tokenizer_path)
-elif os.path.exists(args.tokenizer):
-    logger.info("Loading saved tokenizer in {}...".format(args.tokenizer))
-    tokenizer = BertTokenizer.from_pretrained(args.tokenizer)
+elif os.path.exists(args.model):
+    logger.info("Loading saved tokenizer in {}...".format(args.model))
+    tokenizer = BertTokenizer.from_pretrained(args.model)
 else:
     assert False
 
@@ -108,7 +108,7 @@ for eval in tqdm(eval_dataset):
         gen_iter.append(-1)
     else:
         gen_iter.append(gen_iter_counter)
-with open(os.path.join("eval", args.output_file), "wb") as fout:
+with open(os.path.join("output/eval", args.output_file), "wb") as fout:
     pk.dump(result, fout)
-with open(os.path.join("eval", args.output_file + "_gen_iter"), "wb") as fout:
+with open(os.path.join("output/eval", args.output_file + "_gen_iter"), "wb") as fout:
     pk.dump(gen_iter, fout)

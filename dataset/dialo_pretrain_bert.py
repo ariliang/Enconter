@@ -8,12 +8,14 @@ import os
 import pickle
 
 import numpy as np
-import matplotlib.pyplot as plt
 import torch
+import matplotlib.pyplot as plt
+from tqdm import tqdm
+from sklearn.model_selection import train_test_split
+
+from transformers import BertForMaskedLM, BertTokenizer
 from torch.optim import AdamW
 from torch.utils.data import DataLoader
-from transformers import BertForMaskedLM, BertTokenizer
-from tqdm import tqdm
 
 
 # global
@@ -35,17 +37,20 @@ class Argument:
     # raw train file and preprocessed
     RAW_TRAIN = OUTPUT + 'train_ent.txt'
     RAW = False
-    TRAIN = OUTPUT + 'train_ent'
+    TRAIN = OUTPUT + 'train_ent_test'
 
     # hyper parameters
     DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     MAX_LEN = 512
     BATCH_SIZE = 8
-    EPOCH = 10
+    BATCH_SIZE_EVAL = 16
+    EPOCH = 5
     WORKERS = 4
     LR = 1e-5
+    SEED = 2021
 
 args = Argument
+min_loss = float('inf')
 
 
 class MedDataset:
@@ -123,19 +128,37 @@ def get_dataset(tokenizer):
 
 # get model
 def get_model(path, embed=None):
+    print('Loading pretrained bert model...')
     model = BertForMaskedLM.from_pretrained(args.MODEL)
     if embed:
         pass
     return model
 
+def random_mask(dataloader, tokenizer):
+    pass
 
-def main():
+def compute_loss(logits, labels, loss_func, tokenizer):
+    num_targets = labels.ne(tokenizer.pad_token_id).long().sum().item()
+    loss = loss_func(
+        logits.view(-1, logits.shape[-1]),
+        labels.view(-1)
+    )
+    return loss/num_targets
+
+def train():
     tokenizer = BertTokenizer.from_pretrained(args.TOKENIZER)
     tokenizer.add_special_tokens({'additional_special_tokens': ['[ENT]']})
 
     dataset = get_dataset(tokenizer)
-    loader = DataLoader(
-        dataset=dataset,
+    train_set, eval_set = train_test_split(dataset, test_size=0.2, shuffle=True, random_state=args.SEED)
+    print(f'Train set size: {len(train_set)}, eval set size: {len(eval_set)}')
+    train_loader = DataLoader(
+        dataset=train_set,
+        batch_size=args.BATCH_SIZE,
+        num_workers=args.WORKERS
+    )
+    eval_loader = DataLoader(
+        dataset=eval_set,
         batch_size=args.BATCH_SIZE,
         num_workers=args.WORKERS
     )
@@ -143,18 +166,21 @@ def main():
     model = get_model(args.MODEL)
     model = torch.nn.DataParallel(model)
     model = model.to(args.DEVICE)
-
     optimizer = AdamW(model.parameters(), lr=args.LR)
 
-    min_loss = float('inf')
+    loss_func = torch.nn.CrossEntropyLoss(reduction='sum', ignore_index=tokenizer.pad_token_id)
+
+    model.train()
     total_loss = []
     for epoch in range(args.EPOCH):
         losses = []
-        for batch in tqdm(loader, desc=f'Epoch {epoch+1}/{args.EPOCH}...'):
+        for batch in tqdm(train_loader, desc=f'Train epoch {epoch+1}/{args.EPOCH}'):
             # batch = (raw, input_ids, attention_mask)
             input_ids, attention_mask = map(lambda x: x.to(args.DEVICE), batch[1:])
 
-            loss = model(input_ids=input_ids, attention_mask=attention_mask, labels=input_ids).loss.sum()
+            logits = model(input_ids=input_ids, attention_mask=attention_mask, labels=input_ids).logits
+
+            loss = compute_loss(logits, input_ids, loss_func, tokenizer)
 
             optimizer.zero_grad()
             loss.backward()
@@ -162,19 +188,42 @@ def main():
 
             losses.append(loss.item())
 
-        print(f'avg loss: {np.mean(losses):.3f}')
+        print(f'Train loss: {np.mean(losses):.3f}')
         total_loss.extend(losses)
 
-        # save best epoch
-        if np.mean(losses) < min_loss:
-            min_loss = np.mean(losses)
-            torch.save(model.state_dict(), args.OUTPUT + 'trained.pth')
+        evaluate(model, eval_loader, loss_func, tokenizer)
 
     # save loss change
     plt.plot(np.arange(1, len(total_loss)+1), total_loss, '-o')
     plt.xlabel('epoch')
     plt.ylabel('loss')
     plt.savefig(args.OUTPUT + 'loss.png')
+
+
+def evaluate(model, loader, loss_func, tokenizer):
+
+    global min_loss
+    model.eval()
+
+    losses = []
+    for batch in tqdm(loader, desc=f'Evaluating'):
+        input_ids, attention_mask = map(lambda x: x.to(args.DEVICE), batch[1:])
+
+        logits = model(input_ids=input_ids, attention_mask=attention_mask, labels=input_ids).logits
+        loss = compute_loss(logits, input_ids, loss_func, tokenizer)
+
+        losses.append(loss.item())
+
+    print(f'Eval loss: {np.mean(losses):.3f}')
+
+    # save best epoch
+    if np.mean(losses) < min_loss:
+        min_loss = np.mean(losses)
+        torch.save(model.module.state_dict(), args.OUTPUT + 'trained.pth')
+
+
+def main():
+    train()
 
 
 if __name__ == '__main__':
