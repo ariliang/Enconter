@@ -6,16 +6,15 @@ from scipy.special import softmax
 import numpy as np
 
 
-os.chdir('./dataset')
-print(f'change dir to: {os.getcwd()}')
-
+DATASET = 'dataset/'
+OUTPUT = 'output/CoNLL/'
 
 # Read CoNLL
 ##############
 
 result = []
 # Read train as well as dev
-with open("eng.train") as ftrain, open("eng.testa") as fdev:
+with open(DATASET + "eng.train") as ftrain, open(DATASET + "eng.testa") as fdev:
     document = {}
     lines = []
     for line in ftrain.readlines():
@@ -71,12 +70,12 @@ for r in tqdm(result):
     keywords = { key : value for key, value in zip(keys, scores)}
     r['keywords'] = keywords
 
-with open("CoNLL-2003", "wb") as fout:
+with open(OUTPUT + "CoNLL-2003", "wb") as fout:
     pk.dump(result, fout)
 
 # Load keyword extracted CoNLL
 
-with open("CoNLL-2003", "rb") as fin:
+with open(OUTPUT + "CoNLL-2003", "rb") as fin:
     result = pk.load(fin)
 
 '''results = [
@@ -102,6 +101,7 @@ import numpy as np
 
 vectorizer = TfidfVectorizer(stop_words='english')
 
+# whole document
 corpus = []
 for r in result:
     corpus.append(r['content'])
@@ -124,7 +124,7 @@ for r in tqdm(result):
     for token in r["conll"]:
         assert len(token) == 5
 
-# append td-idf score in the end of [{'conll': [.., td-idf]}]
+# append td-idf score in the end of [{'conll': [['EU', 'NNP', 'I-NP', 'I-ORG', td-idf score], ...]}]
 
 
 # YAKE!
@@ -155,6 +155,9 @@ for r in tqdm(result):
     for token in r["conll"]:
         assert len(token) == 6
 
+# pattern match, match keywords
+# append yake score after iftdf: {'conll': [['Rare', 'NNP', 'I-NP', 'O', 0.0, 0], ...]}
+
 
 # Load tokenizer
 from transformers import BertTokenizer, BertConfig
@@ -177,6 +180,8 @@ for r in tqdm(result):
             temp[0] = bpe
             r['tokenize'].append(temp)
     r["tokenize"].append(('[SEP]', "", "", "end_tkn", 0, 0))
+
+# tokenized by bpe, this extends {'conll': [...]}
 
 
 # Dynamic programming solution for house robber
@@ -294,7 +299,7 @@ for index, r in tqdm(enumerate(result), total=len(result)):
         assert len(masked_span) == len(rqm_tkn) == len(score_arr)
     noi_ratio[index] = Counter(training_data[-1][1])['[NOI]'] / len(training_data[-1][1])
 
-with open("CoNLL_pointer_e", "wb") as fout:
+with open(OUTPUT + "CoNLL_pointer_e", "wb") as fout:
     pk.dump(training_data, fout)
 
 
@@ -339,8 +344,14 @@ for r in tqdm(result):
     while not all(masked_span):
         cursor = 0
         start, end = None, None
+        # 这两个没用
         max_reward, max_reward_idx = float('-inf'), None
         insert_index = []
+        # 在非重要的span中(masked=0)选择一个较大的score的序号(greedy体现)，加入insert_index
+        # e.g.: masked_span = [1, 1, 1, 0,   0,   0, 1, 1]
+        #       score_arr   = [4, 4, 1, 1, 0.5, 0.5, 4, 1]
+        #                          span{↑          }
+        # insert_indx.appned(3)
         while cursor < len(masked_span):
             if masked_span[cursor] == 0:
                 if start is None:
@@ -350,12 +361,16 @@ for r in tqdm(result):
                     end = cursor
             elif end is not None:
                 overall_score = score_arr[start:end+1]
+                # greedy 在这里
                 insert_index.append(start + overall_score.argmax())
                 # Clear span
                 start, end = None, None
             cursor += 1
         train, label = [], []
         select_cursor = 0
+        # 若1, 1，则label插入'[NOI]'。代表两个重要字相邻，则不在之间插入
+        # 若1, 0，则label插入0起始的span里，insert_index所指的token(非重要字中score较大)
+        # 结束后把所有insert_index代表的位置置1，直到所有masked_span里为1，就结束
         for i, m, r in zip(range(len(masked_span)), masked_span, tkns):
             if m == 1:
                 train.append(r)
@@ -367,9 +382,10 @@ for r in tqdm(result):
         training_data.append((train, label))
         for i_idx in insert_index:
             masked_span[i_idx] = 1
+    # 添加x^k, y^k
     training_data.append((tkns, ["[NOI]"] * len(tkns)))
 
-with open("CoNLL_greedy_enconter", "wb") as fout:
+with open(OUTPUT + "CoNLL_greedy_enconter", "wb") as fout:
     pk.dump(training_data, fout)
 
 
@@ -453,7 +469,7 @@ for r in tqdm(result):
             masked_span[i_idx] = 1
     training_data.append((tkns, ["[NOI]"] * len(tkns)))
 
-with open("CoNLL_bbt_enconter", "wb") as fout:
+with open(OUTPUT + "CoNLL_bbt_enconter", "wb") as fout:
     pk.dump(training_data, fout)
 
 
@@ -462,7 +478,7 @@ with open("CoNLL_bbt_enconter", "wb") as fout:
 
 #Prepare testing data for requirement insertion only
 
-with open("eng.testb") as fin:
+with open(DATASET + "eng.testb") as fin:
     testing, lines = [], []
     for line in fin.readlines():
         line = line.split()
@@ -479,12 +495,12 @@ for test in tqdm(testing):
     content = ' '.join([line[0] for line in test if line[-1] != 'O'])
     testing_data.append((" [CLS] " + content + " [SEP] ", gt))
 
-with open("CoNLL_test", "wb") as fout:
+with open(OUTPUT + "CoNLL_test", "wb") as fout:
     pk.dump(testing_data, fout)
 
 #Prepare testing data for requirement only but with span inference the phrase
 
-with open("eng.testb") as fin:
+with open(DATASET + "eng.testb") as fin:
     testing, lines = [], []
     for line in fin.readlines():
         line = line.split()
@@ -522,9 +538,5 @@ for test, entity in tqdm(zip(testing, entities), total=len(testing)):
     phrase_num = [-1] + phrase_num + [-1]
     testing_data.append((" [CLS] " + " ".join(out_str) + " [SEP] ", gt, phrase_num))
 
-with open("CoNLL_test_esai", "wb") as fout:
+with open(OUTPUT + "CoNLL_test_esai", "wb") as fout:
     pk.dump(testing_data, fout)
-
-
-os.chdir('../')
-print(f'change dir back to: {os.getcwd()}')
