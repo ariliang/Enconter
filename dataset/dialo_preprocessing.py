@@ -15,35 +15,25 @@ def process_train_helper(data):
 
     concated_dialog = []
 
-    for dialog in data:
-
-        new_dialog = [dialog[0].get('Sentence')]
-        new_entity = []
-        for ents in list(dialog[0].values())[2:]:
-            new_entity.extend(ents)
-            # new_entity = reversed(list(set(new_entity)))
-
+    for i, dialog in enumerate(data):
+        group = [[0]]
         for i in range(1, len(dialog)):
-
-            if dialog[i-1].get('id') == dialog[i].get('id'):
-                new_dialog[-1] += dialog[i].get('Sentence')
-                # add entities
-                for ents in list(dialog[i].values())[2:]:
-                    new_entity.extend(ents)
-                    # new_entity = reversed(list(set(new_entity)))
-
+            if dialog[i].get('id') == dialog[i-1].get('id'):
+                group[-1].append(i)
             else:
-                new_dialog[-1] += ''.join([ '[ENT]'+ent+'[ENT]'  for ent in set(new_entity) ])
+                group.append([i])
 
+        new_dialog = []
+        for grp in group:
+            utters = []
+            for idx in grp:
                 new_entity = []
-                for ents in list(dialog[i].values())[2:]:
+                for ents in list(dialog[idx].values())[2:]:
                     new_entity.extend(ents)
-                    # new_entity = reversed(list(set(new_entity)))
-                new_dialog.append(dialog[i].get('Sentence'))
+                utters.append(''.join([ '[ENT]'+ent+'[ENT]'  for ent in new_entity ]) + dialog[idx].get('Sentence'))
+            new_dialog.append('[SEP]'.join(utters))
 
-        new_dialog[-1] += ''.join([ '[ENT]'+ent+'[ENT]'  for ent in set(new_entity) ])
-
-        if dialog[-1].get('id') == 'Patients':
+        if dialog[-1].get('id') == 'Patient':
             new_dialog = new_dialog[:-1]
 
         concated_dialog.append(new_dialog)
@@ -59,15 +49,13 @@ def process_train_helper(data):
             fw.write('\n')
 
     # recurrsive
-    # with open(OUTPUT + 'dialo/train_ent_grouped_phaseb.txt', 'w') as fw:
-    #     for dialog in concated_dialog:
-    #        # fw.write(str(i))
-    #        # fw.write('\n')
-    #         for i in range(2, len(dialog), 2):
-    #             for line in dialog[:i]:
-    #                 fw.writelines(line)
-    #                 fw.write('\n')
-    #             fw.write('\n')
+    with open(OUTPUT + 'dialo/train_ent_processed.txt', 'w') as fw:
+        for dialog in concated_dialog:
+            for i in range(1, len(dialog), 2):
+                for line in dialog[:i]:
+                    fw.writelines(line)
+                    fw.write('\n')
+                fw.write('\n')
 
 def process_train():
     # load train data
