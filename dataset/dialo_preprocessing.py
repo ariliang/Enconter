@@ -49,13 +49,13 @@ def process_train_helper(data):
             fw.write('\n')
 
     # recurrsive
-    with open(OUTPUT + 'dialo/train_ent_processed.txt', 'w') as fw:
-        for dialog in concated_dialog:
-            for i in range(1, len(dialog), 2):
-                for line in dialog[:i]:
-                    fw.writelines(line)
-                    fw.write('\n')
-                fw.write('\n')
+    # with open(OUTPUT + 'dialo/train_ent_processed.txt', 'w') as fw:
+    #     for dialog in concated_dialog:
+    #         for i in range(1, len(dialog), 2):
+    #             for line in dialog[:i]:
+    #                 fw.writelines(line)
+    #                 fw.write('\n')
+    #             fw.write('\n')
 
 def process_train():
     # load train data
