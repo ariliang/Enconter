@@ -2,6 +2,9 @@
 # self contrained
 
 import pickle
+
+import numpy as np
+from scipy.special import softmax
 from transformers import BertTokenizer
 from tqdm import tqdm
 import pkuseg
@@ -14,6 +17,7 @@ RAW_DIR = LOCAL_DATA + 'models_datasets/ccks21/'
 OUTPUT = ROOT + 'output/'
 
 POSTAG = True
+MAX_LEN = 512
 
 
 # recurrsive sampling
@@ -136,8 +140,8 @@ def process_raw():
             pair['pat']['ents'], pair['pat']['attr'] = [], []
             pair['doc']['ents'], pair['doc']['attr'] = [], []
 
-            pair['pat']['utter'] = '[CONT]'.join([dialog[idx].get('Sentence') for idx in group[i]])
-            pair['doc']['utter'] = '[CONT]'.join([dialog[idx].get('Sentence') for idx in group[i+1]])
+            pair['pat']['utter'] = ''.join([dialog[idx].get('Sentence') for idx in group[i]])
+            pair['doc']['utter'] = ''.join([dialog[idx].get('Sentence') for idx in group[i+1]])
 
             for idx in group[i]:
                 for k, v in dialog[idx].items():
@@ -169,24 +173,92 @@ def process_raw():
 def process_tokenization():
 
     tokenizer = BertTokenizer.from_pretrained('E:/Local-Data/models_datasets/bert-base-chinese')
-    tokenizer.add_special_tokens({'additional_special_tokens': ['[NOI]', '[CONT]']})
+    tokenizer.add_special_tokens({'additional_special_tokens': ['[NOI]']})
+    tokenizer.eos_token = '[EOS]'
     tokenizer.save_pretrained(OUTPUT+'dialo/')
 
     with open(OUTPUT+'dialo/results.pk', 'rb') as frb:
         data = pickle.load(frb)
 
+    max_len = MAX_LEN
+    pat_len = int(max_len*0.8) - int(max_len*0.8)%100
+    doc_len = max_len - pat_len
 
     results = []
-    for dialo in data:
-        for pair in dialo:
-            pass
+    for dialo in tqdm(data):
+        for pair_idx, pair in enumerate(dialo):
+            masked_span = np.array([], dtype=int)
+            score = np.array([], dtype=float)
+            pat_tokens = []
+            doc_tokens = []
 
+            # add patient utterance
+            # patent utter...[SEP]
+            pat_tokens.extend(tokenizer.tokenize(pair['pat']['utter']))
+
+            loc = 0
+            for bpe, pos in pair['doc']['pos']:
+
+                if len(doc_tokens) > doc_len:
+                    break
+
+                for i, tkn in enumerate(bpe):
+                    if i == 0:
+                        doc_tokens.append(tkn)
+                    else:
+                        doc_tokens.append('##'+tkn)
+                    masked_span = np.append(masked_span, 0)
+                    score = np.append(score, 0.0)
+
+                if bpe in pair['doc']['ents']:
+                    masked_span[range(loc, loc+len(bpe))] = 1
+                    score[range(loc, loc+len(bpe))] += 1.0
+                if pos in ['n', 'r', 'v']:
+                    score[range(loc, loc+len(bpe))] += 1.0
+                if pos in ['a', 'd']:
+                    score[range(loc, loc+len(bpe))] += 0.5
+
+                loc += len(bpe)
+
+            score = softmax(score)
+
+            # add sep token at the end of utterance
+            doc_tokens.append(tokenizer.sep_token)
+            masked_span = np.append(masked_span, 1)
+            score = np.append(score, 0.0)
+
+            tokens = [tokenizer.cls_token] + pat_tokens[:max_len-len(doc_tokens)-2] + [tokenizer.sep_token] + doc_tokens
+
+            if pair_idx > 0:
+                tokens[0] = tokenizer.eos_token
+                tokens = [tokenizer.cls_token] + \
+                            tokenizer.tokenize(dialo[pair_idx-1]['pat']['utter']+tokenizer.sep_token+dialo[pair_idx-1]['doc']['utter'])[:max_len-len(tokens)-3] + \
+                            [tokenizer.sep_token] + tokens
+
+            results.append({
+                'tokens': tokens,
+                'score': score,
+                'masked_span': masked_span
+            })
+
+    with open(OUTPUT+'dialo/results_pos.pk', 'wb') as fwb:
+        pickle.dump(results, fwb)
+        fwb.close()
+
+def process_prepare():
+    with open(OUTPUT+'dialo/results_pos.pk', 'rb') as frb:
+        data = pickle.load(frb)
+
+    for pair in data:
+        pass
 
 def main():
     # process_train()
     # process_dev()
-    # process_raw()
+
+    process_raw()
     process_tokenization()
+    # process_prepare()
 
 
 if __name__ == '__main__':
