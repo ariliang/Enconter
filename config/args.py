@@ -1,7 +1,7 @@
 class TrainArguments:
 
     # Basic config
-    epoch = 3      # default=10, epoch
+    epoch = 4      # default=10, epoch
     batch_size = 8  # default=4, batch size
     save_dir = 'output/checkpoint' # save directory
     save_epoch = 1  # default=5, save per how many epoch
@@ -21,8 +21,8 @@ class TrainArguments:
 
     # model
     model_dir = 'E:/Local-Data/models_datasets/'
-    model = model_dir + 'bert-base-uncased' # default=bert-base-uncased
-    tokenizer = 'bert-base-uncased' # default='bert-base-cased', Using customized tokenizer
+    model = model_dir + 'bert-base-chinese' # default=bert-base-uncased
+    tokenizer = 'bert-base-chinese' # default='bert-base-cased', Using customized tokenizer
 
     # Debug
     no_shuffle = None # action=store_false, No shuffle
@@ -44,6 +44,11 @@ class TrainArguments:
             args.dataset = 'output/CoNLL/CoNLL_bbt_enconter'
             args.save_dir = 'output/bbt_enconter'
             args.warmup = True
+        elif opt == 'meddg':
+            args.dataset = 'output/dialo/dialo_train.pk'
+            args.save_dir = 'output/dialo_ckpt'
+            args.warmup = True
+            args.dataset_version = 'dialo'
 
         return args
 
@@ -57,8 +62,8 @@ class TestArguments:
     output_file = None      # type=str, required=True
 
     # model
-    model = 'E:/Local-Data/models_datasets/bert-base-uncased/'       # default="bert-base-cased", Choose between bert_initialized or original
-    tokenizer = 'bert-base-uncased'   # default="bert-base-cased", Using customized tokenizer
+    model = 'E:/Local-Data/models_datasets/bert-base-chinese/'       # default="bert-base-cased", Choose between bert_initialized or original
+    tokenizer = 'bert-base-chinese'   # default="bert-base-cased", Using customized tokenizer
     inference_mode = 'normal'       # default="normal", Select inference mode between normal and esai
 
     @staticmethod
@@ -92,9 +97,13 @@ class TestArguments:
             args.eval_dataset = 'output/CoNLL/CoNLL_test_esai'
             args.output_file = 'bbt_enconter_esai'
             args.inference_mode = 'esai'
+        elif opt == 'dialo':
+            args.save_dir = 'output/dialo_ckpt'
+            args.eval_dataset = 'output/dialo/dialo_eval.pk'
+            args.output_file = 'dialo_eval'
 
         return args
 
 
-train_args = TrainArguments.get_args('bbt_enconter')
-test_args = TestArguments.get_args('bbt_enconter')
+train_args = TrainArguments.get_args('dialo')
+test_args = TestArguments.get_args('dialo')

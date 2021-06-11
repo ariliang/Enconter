@@ -35,6 +35,9 @@ else:
     tokenizer = BertTokenizer.from_pretrained(args.model)
     if args.dataset_version == "CoNLL":
         tokenizer.add_special_tokens({"additional_special_tokens": ["[NOI]", "\n"]})
+    elif args.dataset_version == 'dialo':
+        tokenizer.add_special_tokens({"additional_special_tokens": ["[NOI]", "\n"]})
+        tokenizer.eos_token = '[EOS]'
     else:
         raise ValueError("dataset/tokenizer config error!")
     os.mkdir(tokenizer_path)

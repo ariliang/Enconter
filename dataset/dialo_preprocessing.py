@@ -3,10 +3,12 @@
 
 import pickle
 
+from tqdm import tqdm
 import numpy as np
 from scipy.special import softmax
+from sklearn.model_selection import train_test_split
+
 from transformers import BertTokenizer
-from tqdm import tqdm
 import pkuseg
 
 
@@ -345,22 +347,30 @@ def process_prepare():
                         select_cursor += 1
                     else:
                         label.append("[NOI]")
-            training_data.append((train, label))
+            # training_data.append((train, label))
+            training_data.append((tokens[:-len(tkns)] + train, ['[NOI]']*(len(tokens)-len(tkns)) + label))
             for i_idx in insert_index:
                 masked_span[i_idx] = 1
-        training_data.append((tkns, ["[NOI]"] * len(tkns)))
+        # training_data.append((tkns, ["[NOI]"] * len(tkns)))
+        training_data.append((tokens, ["[NOI]"] * len(tokens)))
 
 
-    with open(OUTPUT+'dialo/train_data.pk', 'wb') as fwb:
-        pickle.dump(training_data, fwb)
+    dialo_train, dialo_eval = train_test_split(training_data, test_size=0.2)
+
+    with open(OUTPUT+'dialo/train_train.pk', 'wb') as fwb:
+        pickle.dump(dialo_train, fwb)
+        fwb.close()
+
+    with open(OUTPUT+'dialo/train_eval.pk', 'wb') as fwb:
+        pickle.dump(dialo_eval, fwb)
         fwb.close()
 
 def main():
     # process_train()
     # process_dev()
 
-    # process_raw()
-    # process_tokenization()
+    process_raw()
+    process_tokenization()
     process_prepare()
 
 
