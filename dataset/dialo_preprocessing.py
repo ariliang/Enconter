@@ -212,11 +212,15 @@ def process_tokenization():
 
                 if bpe in pair['doc']['ents']:
                     masked_span[range(loc, loc+len(bpe))] = 1
-                    score[range(loc, loc+len(bpe))] += 1.0
-                if pos in ['n', 'r', 'v']:
-                    score[range(loc, loc+len(bpe))] += 1.0
-                if pos in ['a', 'd']:
-                    score[range(loc, loc+len(bpe))] += 0.5
+                    score[range(loc, loc+len(bpe))] += 1.5
+                if pos in ['n']:
+                    score[range(loc, loc+len(bpe))] += 1.3
+                if pos in ['v']:
+                    score[range(loc, loc+len(bpe))] += 1.1
+                if pos in ['a', 'r']:
+                    score[range(loc, loc+len(bpe))] += 0.9
+                if pos in ['d']:
+                    score[range(loc, loc+len(bpe))] += 0.7
 
                 loc += len(bpe)
 
@@ -225,7 +229,9 @@ def process_tokenization():
             # add sep token at the end of utterance
             doc_tokens.append(tokenizer.sep_token)
             masked_span = np.append(masked_span, 1)
+            # masked_span = np.insert(masked_span, 0, 1)
             score = np.append(score, 0.0)
+            # score = np.insert(score, 0, 0.0)
 
             tokens = [tokenizer.cls_token] + pat_tokens[:max_len-len(doc_tokens)-2] + [tokenizer.sep_token] + doc_tokens
 
@@ -245,20 +251,117 @@ def process_tokenization():
         pickle.dump(results, fwb)
         fwb.close()
 
+# Use softmax as masks
+def generate_distance(start, end):
+    left_bound, right_bound = start - 1, end + 1
+    distance = [min(i - left_bound, right_bound - i) for i in range(start, end+1)]
+    return distance
+
 def process_prepare():
     with open(OUTPUT+'dialo/results_pos.pk', 'rb') as frb:
         data = pickle.load(frb)
+        frb.close()
 
+    training_data = []
     for pair in data:
-        pass
+        tokens, score, masked_span = pair.values()
+        tkns = tokens[-len(masked_span)-1:]
+
+        # delete later
+        masked_span = np.insert(masked_span, 0, 1)
+        score = np.insert(score, 0, 0.0)
+
+        # while not all(masked_span):
+        #     cursor = 0
+        #     start, end = None, None
+
+        #     insert_index = []
+        #     # 在非重要的span中(masked=0)选择一个较大的score的序号(greedy体现)，加入insert_index
+        #     # e.g.: masked_span = [1, 1, 1, 0,   0,   0, 1, 1]
+        #     #       score   = [4, 4, 1, 1, 0.5, 0.5, 4, 1]
+        #     #                          span{↑          }
+        #     # insert_indx.appned(3)
+        #     while cursor < len(masked_span):
+        #         if masked_span[cursor] == 0:
+        #             if start is None:
+        #                 start = cursor
+        #                 end = cursor
+        #             else:
+        #                 end = cursor
+        #         elif end is not None:
+        #             overall_score = score[start:end+1]
+        #             # greedy 在这里
+        #             insert_index.append(start + overall_score.argmax())
+        #             # Clear span
+        #             start, end = None, None
+        #         cursor += 1
+        #     train, label = [], []
+        #     select_cursor = 0
+        #     # 若1, 1，则label插入'[NOI]'。代表两个重要字相邻，则不在之间插入
+        #     # 若1, 0，则label插入0起始的span里，insert_index所指的token(非重要字中score较大)
+        #     # 结束后把所有insert_index代表的位置置1，直到所有masked_span里为1，就结束
+        #     for i, m, r in zip(range(len(masked_span)), masked_span, tkns):
+        #         if m == 1:
+        #             train.append(r)
+        #             if i + 1 < len(masked_span) and masked_span[i + 1] == 0:
+        #                 label.append(tkns[insert_index[select_cursor]])
+        #                 select_cursor += 1
+        #             else:
+        #                 label.append("[NOI]")
+        #     training_data.append((train, label))
+        #     for i_idx in insert_index:
+        #         masked_span[i_idx] = 1
+        # # 添加x^k, y^k
+        # training_data.append((tkns, ["[NOI]"] * len(tkns)))
+
+        while not all(masked_span):
+            cursor = 0
+            start, end = None, None
+
+            insert_index = []
+            while cursor < len(masked_span):
+                if masked_span[cursor] == 0:
+                    if start is None:
+                        start = cursor
+                        end = cursor
+                    else:
+                        end = cursor
+                elif end is not None:
+                    overall_score = score[start:end+1]
+                    softmax_score = softmax(generate_distance(start, end))
+                    if softmax_score.max() - softmax_score.min() != 0:
+                        overall_score *= (softmax_score - softmax_score.min()) / (softmax_score.max() - softmax_score.min())
+                    insert_index.append(start + overall_score.argmax())
+                    # Clear span
+                    start, end = None, None
+                cursor += 1
+            train, label = [], []
+            select_cursor = 0
+            for i, m, r in zip(range(len(masked_span)), masked_span, tkns):
+                if m == 1:
+                    train.append(r)
+                    if i + 1 < len(masked_span) and masked_span[i + 1] == 0:
+                        label.append(tkns[insert_index[select_cursor]])
+                        select_cursor += 1
+                    else:
+                        label.append("[NOI]")
+            training_data.append((train, label))
+            for i_idx in insert_index:
+                masked_span[i_idx] = 1
+        training_data.append((tkns, ["[NOI]"] * len(tkns)))
+
+
+    with open(OUTPUT+'dialo/train_data.pk', 'wb') as fwb:
+        pickle.dump(training_data, fwb)
+        fwb.close()
 
 def main():
     # process_train()
     # process_dev()
 
-    process_raw()
-    process_tokenization()
-    # process_prepare()
+    # process_raw()
+    # process_tokenization()
+    process_prepare()
 
 
 if __name__ == '__main__':

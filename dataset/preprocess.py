@@ -5,6 +5,7 @@ from scipy.special import softmax
 import numpy as np
 
 
+PRETRAINED = 'E:/Local-Data/models_datasets/'
 DATASET = 'dataset/'
 OUTPUT = 'output/CoNLL/'
 
@@ -39,6 +40,8 @@ with open(DATASET + "eng.train") as ftrain, open(DATASET + "eng.testa") as fdev:
             else:
                 lines.append(line)
 
+# controll size of results
+result = result[:10]
 
 # YAKE!
 ###########
@@ -160,9 +163,9 @@ for r in tqdm(result):
 
 # Load tokenizer
 from transformers import BertTokenizer, BertConfig
-tokenizer = BertTokenizer.from_pretrained("bert-base-cased")
+tokenizer = BertTokenizer.from_pretrained(PRETRAINED+"bert-base-uncased")
 tokenizer.add_special_tokens({"additional_special_tokens" : ["[NOI]", "\n"]})
-BertConfig.from_pretrained("bert-base-cased")
+BertConfig.from_pretrained(PRETRAINED+"bert-base-uncased")
 
 
 # Split by BPE

@@ -15,7 +15,7 @@ from config.args import train_args as args
 
 device = torch.device("cuda")
 logger = logging.getLogger(__name__)
-
+os.environ['KMP_DUPLICATE_LIB_OK']='True'
 
 if not args.debug:
     if not os.path.exists(args.save_dir):
