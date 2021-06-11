@@ -6,12 +6,15 @@ import numpy as np
 import torch
 import torch.utils.data as data
 
+
 from tqdm import tqdm
 from transformers import BertTokenizer, BertForMaskedLM
 
 from dataset_utils import InsertionTransformerDataset, concat_fn
 from utils import get_linear_schedule_with_warmup, get_lr
 from config.args import train_args as args
+
+# torch.distributed.init_process_group(backend='', rank=0, world_size=2)
 
 device = torch.device("cuda")
 logger = logging.getLogger(__name__)
@@ -43,6 +46,7 @@ logger.info("Building model...")
 model = BertForMaskedLM.from_pretrained(args.model)
 model.resize_token_embeddings(len(tokenizer))
 model = torch.nn.DataParallel(model)
+# model = Distributed
 model = model.to(device)
 
 # Read model counter which records the training epoch of the current model

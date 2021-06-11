@@ -1,7 +1,7 @@
 class TrainArguments:
 
     # Basic config
-    epoch = 4      # default=10, epoch
+    epoch = 3      # default=10, epoch
     batch_size = 8  # default=4, batch size
     save_dir = 'output/checkpoint' # save directory
     save_epoch = 1  # default=5, save per how many epoch
@@ -22,7 +22,7 @@ class TrainArguments:
     # model
     model_dir = 'E:/Local-Data/models_datasets/'
     model = model_dir + 'bert-base-uncased' # default=bert-base-uncased
-    tokenizer = model_dir + 'bert-base-uncased' # default='bert-base-cased', Using customized tokenizer
+    tokenizer = 'bert-base-uncased' # default='bert-base-cased', Using customized tokenizer
 
     # Debug
     no_shuffle = None # action=store_false, No shuffle
@@ -57,8 +57,8 @@ class TestArguments:
     output_file = None      # type=str, required=True
 
     # model
-    model = '/home/ariliang/Local-Data/models_datasets/bert-base-chinese/'       # default="bert-base-cased", Choose between bert_initialized or original
-    tokenizer = 'bert-base-chinese'   # default="bert-base-cased", Using customized tokenizer
+    model = 'E:/Local-Data/models_datasets/bert-base-uncased/'       # default="bert-base-cased", Choose between bert_initialized or original
+    tokenizer = 'bert-base-uncased'   # default="bert-base-cased", Using customized tokenizer
     inference_mode = 'normal'       # default="normal", Select inference mode between normal and esai
 
     @staticmethod
