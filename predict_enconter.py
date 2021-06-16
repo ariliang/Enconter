@@ -54,19 +54,28 @@ with open(args.eval_dataset, "rb") as fin:
 result = []
 gen_iter = []
 noi_token_num = tokenizer.additional_special_tokens_ids[0]
-for eval in tqdm(eval_dataset):
+for eval in tqdm(eval_dataset[:100]):
     if args.inference_mode == 'esai':
         e, gt, span_arr = eval
         span_arr = torch.tensor(span_arr)
     else:
-        e, gt = eval
-    generated = torch.tensor(tokenizer.encode(e, add_special_tokens=False), dtype=torch.long)
+        e, gt, tp = eval
+    # if e[-2:] != [tokenizer.sep_token, tokenizer.sep_token]:
+    #     continue
+
+    generated = torch.tensor([tokenizer.convert_tokens_to_ids(tkn) for tkn in e], dtype=torch.long)
+    token_type = torch.tensor([tp], dtype=torch.long)
+    start_idx = (token_type == 0).sum()
+
     if args.inference_mode == 'esai':
         assert len(generated) == len(span_arr)
     gen_iter_counter = 0
+
     while len(generated) < 512:
         inputs = generated.unsqueeze(0).to(device)
-        outputs = model(inputs)
+        token_type = token_type.to(device)
+        token_type = torch.cat((token_type, torch.ones(1, inputs.shape[1]-token_type.shape[1], dtype=torch.long).to(device)), dim=-1)
+        outputs = model(inputs, token_type)
         top_k_prob, indices = torch.topk(torch.softmax(outputs[0], dim=-1), k=20, dim=-1)
         predicted = torch.multinomial(top_k_prob.squeeze(), 1)
         predicted = torch.gather(indices.squeeze(), -1, predicted).squeeze()
@@ -89,7 +98,7 @@ for eval in tqdm(eval_dataset):
                             .scatter(0, torch.arange(1, g_len * 2 - 1, step=2), inserted_span))
             span_arr = new_span_arr[generated_seq != noi_token_num]
         else:
-            if (predicted == noi_token_num).all():
+            if (predicted[start_idx:] == noi_token_num).all():
                 break
             generated_seq = (torch.zeros(g_len * 2, dtype=torch.long)
                              .scatter(0, torch.arange(0, g_len * 2, step=2), generated)
@@ -104,7 +113,7 @@ for eval in tqdm(eval_dataset):
     # print("Generation: ", generation)
     # print("GT: ", gt)
     result.append((e, generation, gt))
-    if e.split() == generation.split():
+    if e == generation.split():
         gen_iter.append(-1)
     else:
         gen_iter.append(gen_iter_counter)

@@ -19,6 +19,7 @@ from config.args import train_args as args
 device = torch.device("cuda")
 logger = logging.getLogger(__name__)
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
+os.environ['CUDA_VISIBLE_DEVICES'] = '2,3'
 
 if not args.debug:
     if not os.path.exists(args.save_dir):
@@ -36,8 +37,7 @@ else:
     if args.dataset_version == "CoNLL":
         tokenizer.add_special_tokens({"additional_special_tokens": ["[NOI]", "\n"]})
     elif args.dataset_version == 'dialo':
-        tokenizer.add_special_tokens({"additional_special_tokens": ["[NOI]", "\n"]})
-        tokenizer.eos_token = '[EOS]'
+        tokenizer.add_special_tokens({"additional_special_tokens": ["[NOI]", "\n", '[EOS]']})
     else:
         raise ValueError("dataset/tokenizer config error!")
     os.mkdir(tokenizer_path)
@@ -117,6 +117,21 @@ else:
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, args.decay_step, gamma=args.weight_decay)
 
 criterion = torch.nn.CrossEntropyLoss(ignore_index=tokenizer.pad_token_id, reduction='sum')
+
+def compute_loss(logits, labels, token_type, criterion):
+        mask = torch.logical_and(labels, token_type)
+
+        logits_view = torch.argmax(logits, dim=-1)
+
+        logits_view = logits_view * mask
+        labels_view = labels * mask
+
+        # logits_view = logits_view.view(-1, logits_view.size(-1)).float()
+        # labels_view = labels_view.view(-1).long()
+        # loss = criterion(logits_view, labels_view) / len(target_range)
+
+        return loss/args.batch_size, accuracy/args.batch_size
+
 logger.info("Start training...")
 epoch_loss = np.zeros(0)
 for e in range(counter, args.epoch):
@@ -125,33 +140,40 @@ for e in range(counter, args.epoch):
     for batch_num, batch_data in enumerate(loader):
         model.train()
         pbar.update(1)
-        inputs, labels = batch_data
+        inputs, labels, token_type = batch_data
 
-        encoded_labels = labels.tolist()
-        encoded_inputs = inputs.tolist()
-        decoded = []
-        for ipt, lb in zip(encoded_inputs, encoded_labels):
-            decoded.append(tokenizer.decode(ipt).split(' '))
-            decoded.append(tokenizer.decode(lb).split(' '))
+        # encoded_labels = labels.tolist()
+        # encoded_inputs = inputs.tolist()
+        # decoded = []
+        # for ipt, lb in zip(encoded_inputs, encoded_labels):
+        #     decoded.append(tokenizer.decode(ipt))
+        #     decoded.append(tokenizer.decode(lb))
 
-        inputs, labels = inputs.to(device), labels.to(device)
+        inputs, labels, token_type = inputs.to(device), labels.to(device), token_type.to(device)
         attn_mask = (inputs != tokenizer.pad_token_id).float().to(device)
 
-        num_target = attn_mask.sum().item()
+        output = model(input_ids=inputs, attention_mask=attn_mask, token_type_ids=token_type)
 
-        output = model(input_ids=inputs, attention_mask=attn_mask)
-        logits = output[0]
+        loss, accuracy = compute_loss(output[0], labels, token_type, criterion)
 
-        logits_view = logits.view(-1, logits.size(-1)).float()
-        labels_view = labels.view(-1).long()
-        loss = criterion(logits_view, labels_view) / num_target
-
-        optimizer.zero_grad()
         loss.backward(loss.data)
+        optimizer.zero_grad()
         optimizer.step()
-        avg_loss += loss.item()
         if args.warmup:
             scheduler.step()
+
+        # loss /= args.gredient_accumulation
+
+        # loss.backward(loss.data)
+        # torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+
+        # if ((batch_num+1) % args.gredient_accumulation) == 0:
+            # print(f'update gredient | loss {loss}')
+            # optimizer.zero_grad()
+            # optimizer.step()
+            # if args.warmup:
+                # scheduler.step()
+        avg_loss += loss.item()
         logger.info(f"Epoch: {e} lr: {get_lr(optimizer)} Avg NLLLoss: {avg_loss / (batch_num + 1)}")
         if args.debug and batch_num and batch_num % args.debug_dataset_size == 0:
             break

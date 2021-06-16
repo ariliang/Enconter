@@ -175,9 +175,9 @@ def process_raw():
 def process_tokenization():
 
     tokenizer = BertTokenizer.from_pretrained('E:/Local-Data/models_datasets/bert-base-chinese')
-    tokenizer.add_special_tokens({'additional_special_tokens': ['[NOI]']})
+    tokenizer.add_special_tokens({'additional_special_tokens': ['[NOI]', '\n']})
     tokenizer.eos_token = '[EOS]'
-    tokenizer.save_pretrained(OUTPUT+'dialo/')
+    # tokenizer.save_pretrained(OUTPUT+'dialo/')
 
     with open(OUTPUT+'dialo/results.pk', 'rb') as frb:
         data = pickle.load(frb)
@@ -231,9 +231,7 @@ def process_tokenization():
             # add sep token at the end of utterance
             doc_tokens.append(tokenizer.sep_token)
             masked_span = np.append(masked_span, 1)
-            # masked_span = np.insert(masked_span, 0, 1)
             score = np.append(score, 0.0)
-            # score = np.insert(score, 0, 0.0)
 
             tokens = [tokenizer.cls_token] + pat_tokens[:max_len-len(doc_tokens)-2] + [tokenizer.sep_token] + doc_tokens
 
@@ -264,12 +262,12 @@ def process_prepare():
         data = pickle.load(frb)
         frb.close()
 
+    data = data[:200]
     training_data = []
-    for pair in data:
+    for pair in tqdm(data):
         tokens, score, masked_span = pair.values()
         tkns = tokens[-len(masked_span)-1:]
 
-        # delete later
         masked_span = np.insert(masked_span, 0, 1)
         score = np.insert(score, 0, 0.0)
 
@@ -348,20 +346,21 @@ def process_prepare():
                     else:
                         label.append("[NOI]")
             # training_data.append((train, label))
-            training_data.append((tokens[:-len(tkns)] + train, ['[NOI]']*(len(tokens)-len(tkns)) + label))
+            # training_data.append((tokens[:-len(tkns)] + train, ['[NOI]']*(len(tokens)-len(tkns)) + label, [0]*(len(tokens)-len(tkns))+[1]*len(train)))
+            training_data.append((tokens[:-len(tkns)] + train, tokens[:-len(tkns)] + label, [0]*len(tokens[:-len(tkns)]) + [1]*len(train)))
             for i_idx in insert_index:
                 masked_span[i_idx] = 1
         # training_data.append((tkns, ["[NOI]"] * len(tkns)))
-        training_data.append((tokens, ["[NOI]"] * len(tokens)))
+        training_data.append((tokens, tokens[:-len(tkns)] + ["[NOI]"] * len(tkns), [0]*len(tokens[:-len(tkns)]) + [1]*len(tkns)))
 
 
     dialo_train, dialo_eval = train_test_split(training_data, test_size=0.2)
 
-    with open(OUTPUT+'dialo/train_train.pk', 'wb') as fwb:
+    with open(OUTPUT+'dialo/dialo_train', 'wb') as fwb:
         pickle.dump(dialo_train, fwb)
         fwb.close()
 
-    with open(OUTPUT+'dialo/train_eval.pk', 'wb') as fwb:
+    with open(OUTPUT+'dialo/dialo_eval', 'wb') as fwb:
         pickle.dump(dialo_eval, fwb)
         fwb.close()
 
@@ -369,8 +368,8 @@ def main():
     # process_train()
     # process_dev()
 
-    process_raw()
-    process_tokenization()
+    # process_raw()
+    # process_tokenization()
     process_prepare()
 
 

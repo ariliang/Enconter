@@ -1,8 +1,9 @@
 class TrainArguments:
 
     # Basic config
-    epoch = 4      # default=10, epoch
+    epoch = 6      # default=10, epoch
     batch_size = 8  # default=4, batch size
+    gredient_accumulation = 2
     save_dir = 'output/checkpoint' # save directory
     save_epoch = 1  # default=5, save per how many epoch
 
@@ -44,8 +45,8 @@ class TrainArguments:
             args.dataset = 'output/CoNLL/CoNLL_bbt_enconter'
             args.save_dir = 'output/bbt_enconter'
             args.warmup = True
-        elif opt == 'meddg':
-            args.dataset = 'output/dialo/dialo_train.pk'
+        elif opt == 'dialo':
+            args.dataset = 'output/dialo/dialo_eval'
             args.save_dir = 'output/dialo_ckpt'
             args.warmup = True
             args.dataset_version = 'dialo'
@@ -99,7 +100,7 @@ class TestArguments:
             args.inference_mode = 'esai'
         elif opt == 'dialo':
             args.save_dir = 'output/dialo_ckpt'
-            args.eval_dataset = 'output/dialo/dialo_eval.pk'
+            args.eval_dataset = 'output/dialo/dialo_eval'
             args.output_file = 'dialo_eval'
 
         return args
