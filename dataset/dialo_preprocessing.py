@@ -175,7 +175,8 @@ def process_raw():
 def process_tokenization():
 
     tokenizer = BertTokenizer.from_pretrained('E:/Local-Data/models_datasets/bert-base-chinese')
-    tokenizer.add_special_tokens({'additional_special_tokens': ['[NOI]', '\n']})
+    tokenizer.add_special_tokens({'additional_special_tokens': ['[NOI]', '\n', '[BOS]', '[EOS]']})
+    tokenizer.bos_token = '[BOS]'
     tokenizer.eos_token = '[EOS]'
     # tokenizer.save_pretrained(OUTPUT+'dialo/')
 
@@ -229,17 +230,17 @@ def process_tokenization():
             score = softmax(score)
 
             # add sep token at the end of utterance
-            doc_tokens.append(tokenizer.sep_token)
+            doc_tokens.append(tokenizer.eos_token)
             masked_span = np.append(masked_span, 1)
             score = np.append(score, 0.0)
 
             tokens = [tokenizer.cls_token] + pat_tokens[:max_len-len(doc_tokens)-2] + [tokenizer.sep_token] + doc_tokens
 
             if pair_idx > 0:
-                tokens[0] = tokenizer.eos_token
+                tokens[0] = tokenizer.bos_token
                 tokens = [tokenizer.cls_token] + \
-                            tokenizer.tokenize(dialo[pair_idx-1]['pat']['utter']+tokenizer.sep_token+dialo[pair_idx-1]['doc']['utter'])[:max_len-len(tokens)-3] + \
-                            [tokenizer.sep_token] + tokens
+                            tokenizer.tokenize(dialo[pair_idx-1]['pat']['utter']+tokenizer.sep_token+dialo[pair_idx-1]['doc']['utter'])[:max_len-len(tokens)-2] + \
+                            tokens
 
             results.append({
                 'tokens': tokens,
@@ -262,7 +263,7 @@ def process_prepare():
         data = pickle.load(frb)
         frb.close()
 
-    data = data[:200]
+    # data = data[:200]
     training_data = []
     for pair in tqdm(data):
         tokens, score, masked_span = pair.values()
@@ -369,8 +370,8 @@ def main():
     # process_dev()
 
     # process_raw()
-    # process_tokenization()
-    process_prepare()
+    process_tokenization()
+    # process_prepare()
 
 
 if __name__ == '__main__':

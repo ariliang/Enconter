@@ -1,7 +1,7 @@
 class TrainArguments:
 
     # Basic config
-    epoch = 6      # default=10, epoch
+    epoch = 2      # default=10, epoch
     batch_size = 8  # default=4, batch size
     gredient_accumulation = 2
     save_dir = 'output/checkpoint' # save directory
