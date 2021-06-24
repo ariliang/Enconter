@@ -16,10 +16,10 @@ from config.args import train_args as args
 
 # torch.distributed.init_process_group(backend='', rank=0, world_size=2)
 
-device = torch.device("cuda")
+device = torch.device(args.device)
 logger = logging.getLogger(__name__)
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
-os.environ['CUDA_VISIBLE_DEVICES'] = '2,3'
+os.environ['CUDA_VISIBLE_DEVICES'] = args.cuda_visiable
 
 if not args.debug:
     if not os.path.exists(args.save_dir):
@@ -37,7 +37,7 @@ else:
     if args.dataset_version == "CoNLL":
         tokenizer.add_special_tokens({"additional_special_tokens": ["[NOI]", "\n"]})
     elif args.dataset_version == 'dialo':
-        tokenizer.add_special_tokens({"additional_special_tokens": ["[NOI]", "\n", '[BOS]', '[EOS]']})
+        tokenizer.add_special_tokens({'additional_special_tokens': ['[NOI]', '\n', '[BOS]', '[EOS]', '[PAT]', '[DOC]']})
         tokenizer.bos_token = '[BOS]'
         tokenizer.eos_token = '[EOS]'
     else:
@@ -51,7 +51,6 @@ logger.info("Building model...")
 model = BertForMaskedLM.from_pretrained(args.model)
 model.resize_token_embeddings(len(tokenizer))
 model = torch.nn.DataParallel(model)
-# model = Distributed
 model = model.to(device)
 
 # Read model counter which records the training epoch of the current model
@@ -132,12 +131,12 @@ def compute_loss(logits, labels, token_type, criterion):
         # labels_view = labels_view.view(-1).long()
         # loss = criterion(logits_view, labels_view) / len(target_range)
 
-        return loss/args.batch_size, accuracy/args.batch_size
+        # return loss/args.batch_size, accuracy/args.batch_size
 
 logger.info("Start training...")
 epoch_loss = np.zeros(0)
 for e in range(counter, args.epoch):
-    pbar = tqdm(total=total_step)
+    pbar = tqdm(total=total_step, desc=f'batch {e+1}/{args.epoch}')
     avg_loss = np.zeros(shape=(1))
     for batch_num, batch_data in enumerate(loader):
         model.train()
@@ -154,11 +153,12 @@ for e in range(counter, args.epoch):
         inputs, labels, token_type = inputs.to(device), labels.to(device), token_type.to(device)
         attn_mask = (inputs != tokenizer.pad_token_id).float().to(device)
 
-        output = model(input_ids=inputs, attention_mask=attn_mask, token_type_ids=token_type)
+        output = model(input_ids=inputs, attention_mask=attn_mask, token_type_ids=token_type, labels=inputs)
 
-        loss, accuracy = compute_loss(output[0], labels, token_type, criterion)
+        # loss, accuracy = compute_loss(output[0], labels, token_type, criterion)
+        loss = output[0].mean()
 
-        loss.backward(loss.data)
+        loss.backward()
         optimizer.zero_grad()
         optimizer.step()
         if args.warmup:

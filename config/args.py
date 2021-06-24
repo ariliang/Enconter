@@ -1,11 +1,13 @@
 class TrainArguments:
 
     # Basic config
-    epoch = 2      # default=10, epoch
+    epoch = 5      # default=10, epoch
     batch_size = 8  # default=4, batch size
     gredient_accumulation = 2
     save_dir = 'output/checkpoint' # save directory
     save_epoch = 1  # default=5, save per how many epoch
+    device = 'cuda'
+    cuda_visiable = '0,1,2,3'
 
     # Optimizer
     lr = 5e-5           # default=5e-5, learning rate

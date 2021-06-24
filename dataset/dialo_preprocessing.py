@@ -116,7 +116,7 @@ def process_raw():
 
     ents_list = ['Diease', 'Test', 'Medicine', 'Symptom']
 
-    for dialog in tqdm(data):
+    for dialog in tqdm(data, desc='process_raw'):
         group = [[0]]
         for i in range(1, len(dialog)):
             if dialog[i].get('id') == dialog[i-1].get('id'):
@@ -175,7 +175,7 @@ def process_raw():
 def process_tokenization():
 
     tokenizer = BertTokenizer.from_pretrained('E:/Local-Data/models_datasets/bert-base-chinese')
-    tokenizer.add_special_tokens({'additional_special_tokens': ['[NOI]', '\n', '[BOS]', '[EOS]']})
+    tokenizer.add_special_tokens({'additional_special_tokens': ['[NOI]', '\n', '[BOS]', '[EOS]', '[PAT]', '[DOC]']})
     tokenizer.bos_token = '[BOS]'
     tokenizer.eos_token = '[EOS]'
     # tokenizer.save_pretrained(OUTPUT+'dialo/')
@@ -188,7 +188,7 @@ def process_tokenization():
     doc_len = max_len - pat_len
 
     results = []
-    for dialo in tqdm(data):
+    for dialo in tqdm(data, desc='process_tokenize'):
         for pair_idx, pair in enumerate(dialo):
             masked_span = np.array([], dtype=int)
             score = np.array([], dtype=float)
@@ -230,16 +230,19 @@ def process_tokenization():
             score = softmax(score)
 
             # add sep token at the end of utterance
-            doc_tokens.append(tokenizer.eos_token)
+            doc_tokens = ['[DOC]'] + doc_tokens
+            doc_tokens.append(tokenizer.sep_token)
             masked_span = np.append(masked_span, 1)
             score = np.append(score, 0.0)
+            masked_span = np.insert(masked_span, 0, 1)
+            score = np.insert(score, 0, 0.0)
 
-            tokens = [tokenizer.cls_token] + pat_tokens[:max_len-len(doc_tokens)-2] + [tokenizer.sep_token] + doc_tokens
+            tokens = [tokenizer.cls_token, '[PAT]'] + pat_tokens[:max_len-len(doc_tokens)-2] + doc_tokens
 
             if pair_idx > 0:
-                tokens[0] = tokenizer.bos_token
-                tokens = [tokenizer.cls_token] + \
-                            tokenizer.tokenize(dialo[pair_idx-1]['pat']['utter']+tokenizer.sep_token+dialo[pair_idx-1]['doc']['utter'])[:max_len-len(tokens)-2] + \
+                tokens[0] = tokenizer.sep_token
+                tokens = [tokenizer.cls_token, '[PAT]'] + \
+                            tokenizer.tokenize(dialo[pair_idx-1]['pat']['utter']+'[DOC]'+dialo[pair_idx-1]['doc']['utter'])[:max_len-len(tokens)-3] + \
                             tokens
 
             results.append({
@@ -263,14 +266,10 @@ def process_prepare():
         data = pickle.load(frb)
         frb.close()
 
-    # data = data[:200]
     training_data = []
-    for pair in tqdm(data):
+    for pair in tqdm(data, desc='process_prepare'):
         tokens, score, masked_span = pair.values()
-        tkns = tokens[-len(masked_span)-1:]
-
-        masked_span = np.insert(masked_span, 0, 1)
-        score = np.insert(score, 0, 0.0)
+        tkns = tokens[-len(masked_span):]
 
         # while not all(masked_span):
         #     cursor = 0
@@ -347,7 +346,6 @@ def process_prepare():
                     else:
                         label.append("[NOI]")
             # training_data.append((train, label))
-            # training_data.append((tokens[:-len(tkns)] + train, ['[NOI]']*(len(tokens)-len(tkns)) + label, [0]*(len(tokens)-len(tkns))+[1]*len(train)))
             training_data.append((tokens[:-len(tkns)] + train, tokens[:-len(tkns)] + label, [0]*len(tokens[:-len(tkns)]) + [1]*len(train)))
             for i_idx in insert_index:
                 masked_span[i_idx] = 1
@@ -370,8 +368,8 @@ def main():
     # process_dev()
 
     # process_raw()
-    process_tokenization()
-    # process_prepare()
+    # process_tokenization()
+    process_prepare()
 
 
 if __name__ == '__main__':
