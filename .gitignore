@@ -1,10 +1,6 @@
 __pycache__
 .vscode/
+.ipynb_checkpoints/
 *.swap
 
-cached*
-CoNLL*
-eval/
-pointer_e/
-greedy_enconter/
-bbt_enconter/
+output/
