@@ -92,7 +92,7 @@ if counter > 0 and not args.debug:
         logger.info("Optimizer check point not exist!")
 optimizer.param_groups[0]['initial_lr'] = optimizer.param_groups[0]['lr']
 
-training_dataset = InsertionTransformerDataset(tokenizer, os.path.join(os.getcwd(), args.dataset))
+training_dataset = InsertionTransformerDataset(tokenizer, os.path.join(os.getcwd(), args.dataset), args.max_len)
 if args.debug or args.workers == 1:
     loader = data.DataLoader(training_dataset,
                              batch_size=args.batch_size,

@@ -245,6 +245,9 @@ def process_tokenization():
                             tokenizer.tokenize(dialo[pair_idx-1]['pat']['utter']+'[DOC]'+dialo[pair_idx-1]['doc']['utter'])[:max_len-len(tokens)-3] + \
                             tokens
 
+            if len(tokens) > MAX_LEN:
+                continue
+
             results.append({
                 'tokens': tokens,
                 'score': score,
@@ -368,7 +371,7 @@ def main():
     # process_dev()
 
     # process_raw()
-    # process_tokenization()
+    process_tokenization()
     process_prepare()
 
 

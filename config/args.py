@@ -1,7 +1,7 @@
 class TrainArguments:
 
     # Basic config
-    epoch = 5      # default=10, epoch
+    epoch = 10      # default=10, epoch
     batch_size = 8  # default=4, batch size
     gredient_accumulation = 2
     save_dir = 'output/checkpoint' # save directory
@@ -21,6 +21,7 @@ class TrainArguments:
     workers = 1         # default=8, number of workers for dataset loader
     dataset = None      # required=True, path to dataset
     dataset_version = 'CoNLL' # dataset version
+    max_len = 512
 
     # model
     model_dir = 'E:/Local-Data/models_datasets/'
