@@ -152,8 +152,9 @@ for e in range(counter, args.epoch):
 
         inputs, labels, token_type = inputs.to(device), labels.to(device), token_type.to(device)
         attn_mask = (inputs != tokenizer.pad_token_id).float().to(device)
+        position_ids = torch.arange(args.max_len, dtype=torch.long).to(args.device).unsqueeze(0).repeat_interleave(args.batch_size, dim=0)
 
-        output = model(input_ids=inputs, attention_mask=attn_mask, token_type_ids=token_type, labels=inputs)
+        output = model(input_ids=inputs, attention_mask=attn_mask, token_type_ids=token_type, position_ids=position_ids)
 
         # loss, accuracy = compute_loss(output[0], labels, token_type, criterion)
         loss = output[0].mean()
